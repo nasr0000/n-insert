@@ -11,7 +11,8 @@ function createPasteButton() {
   btn.style.cssText = `
     position: fixed;
     bottom: 90px;
-    right: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 99999;
     padding: 15px 20px;
     font-size: 16px;
@@ -22,11 +23,35 @@ function createPasteButton() {
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     cursor: pointer;
     font-family: sans-serif;
+    transition: background-color 0.1s, transform 0.1s;
+    white-space: nowrap;
   `;
 
   document.body.appendChild(btn);
 
-  btn.addEventListener('click', async () => {
+  // Предотвращаем потерю фокуса активного элемента и добавляем эффект нажатия
+  const pressBtn = (e) => {
+    if (e) e.preventDefault();
+    btn.style.transform = 'translateX(-50%) scale(0.95)';
+    btn.style.backgroundColor = '#0056b3';
+  };
+  const releaseBtn = () => {
+    btn.style.transform = 'translateX(-50%) scale(1)';
+    btn.style.backgroundColor = '#007bff';
+  };
+
+  btn.addEventListener('mousedown', pressBtn);
+  btn.addEventListener('touchstart', pressBtn, { passive: false });
+  
+  btn.addEventListener('mouseup', releaseBtn);
+  btn.addEventListener('mouseleave', releaseBtn);
+  let isPasting = false;
+
+  const executePaste = async (e) => {
+    if (e) e.preventDefault();
+    if (isPasting) return;
+    isPasting = true;
+    
     try {
       // Запрашиваем текст из буфера обмена
       const text = await navigator.clipboard.readText();
@@ -51,10 +76,30 @@ function createPasteButton() {
       // По умолчанию это активный элемент (куда установлен фокус)
       let targetElement = document.activeElement;
       
-      // Если фокус на body или не установлен, отправляем на document или конкретный div, 
-      // перехватывающий вставку в AinurPOS
-      if (!targetElement || targetElement === document.body) {
-         targetElement = document; // AinurPOS может слушать document
+      // Если активный элемент - это iframe (как на странице импорта), заходим внутрь него
+      if (targetElement && targetElement.tagName && targetElement.tagName.toLowerCase() === 'iframe') {
+        try {
+           const iframeDoc = targetElement.contentDocument || targetElement.contentWindow.document;
+           if (iframeDoc) {
+             // Ищем скрытое поле Handsontable внутри iframe
+             const hotInput = iframeDoc.querySelector('textarea.handsontableInput');
+             if (hotInput) {
+                targetElement = hotInput;
+             } else {
+                targetElement = iframeDoc.activeElement || iframeDoc.body || iframeDoc;
+             }
+           }
+        } catch(e) {
+           console.warn('Не удалось получить доступ к содержимому iframe: ', e);
+        }
+      } else if (!targetElement || targetElement === document.body || targetElement === btn) {
+         // Если мы не в iframe, ищем скрытое поле в основном документе
+         const hotInput = document.querySelector('textarea.handsontableInput');
+         if (hotInput) {
+            targetElement = hotInput;
+         } else {
+            targetElement = document; // AinurPOS может слушать document
+         }
       }
       
       // Инициируем событие
@@ -66,8 +111,19 @@ function createPasteButton() {
     } catch (err) {
       console.error('Ошибка вставки: ', err);
       alert('Не удалось прочитать буфер обмена. Возможно, не дано разрешение.');
+    } finally {
+      setTimeout(() => {
+        isPasting = false;
+      }, 300);
     }
+  };
+
+  btn.addEventListener('touchend', (e) => {
+    releaseBtn();
+    executePaste(e);
   });
+
+  btn.addEventListener('click', executePaste);
 }
 
 function logSuccess(textLength) {
