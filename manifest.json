@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "AinurPOS Paste Extension",
+  "version": "1.0",
+  "description": "Эмуляция вставки из буфера обмена для мобильных браузеров в AinurPOS",
+  "permissions": [
+    "clipboardRead",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://web.ainur.app/*",
+    "https://*.firebaseio.com/*",
+    "https://*.googleapis.com/*",
+    "https://*.firebase.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://web.ainur.app/card/docs/purchase*"
+      ],
+      "js": [
+        "firebase-config.js",
+        "content.js"
+      ]
+    }
+  ]
+}
