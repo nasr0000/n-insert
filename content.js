@@ -1,12 +1,16 @@
 // content.js
 
 function createPasteButton() {
+  // Проверяем, нет ли уже кнопки, чтобы не дублировать
+  if (document.getElementById('ainur-paste-btn')) return;
+
   // Создание плавающей кнопки
   const btn = document.createElement('button');
+  btn.id = 'ainur-paste-btn';
   btn.innerHTML = '📋 Вставить товары';
   btn.style.cssText = `
     position: fixed;
-    bottom: 20px;
+    bottom: 90px;
     right: 20px;
     z-index: 99999;
     padding: 15px 20px;
@@ -78,5 +82,17 @@ function logSuccess(textLength) {
   });
 }
 
-// Запускаем создание кнопки
-createPasteButton();
+// Проверяем URL и добавляем/удаляем кнопку раз в секунду.
+// Это решает проблему с SPA (Single Page Application) и кэшированием в мобильных браузерах.
+setInterval(() => {
+  const currentUrl = window.location.href.toLowerCase();
+  // Кнопка будет показываться на страницах закупки и импорта
+  const isTargetPage = currentUrl.includes('/purchase') || currentUrl.includes('/import');
+  const existingBtn = document.getElementById('ainur-paste-btn');
+
+  if (isTargetPage && !existingBtn) {
+    createPasteButton();
+  } else if (!isTargetPage && existingBtn) {
+    existingBtn.remove();
+  }
+}, 1000);
